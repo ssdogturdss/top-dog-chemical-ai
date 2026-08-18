@@ -1,0 +1,68 @@
+# =============================================================================
+# Top Dog Chemical AI — Nginx configuration example
+# Copy to /etc/nginx/sites-available/topdog and symlink to sites-enabled.
+# Replace "topdog.example.com" with your actual domain.
+# =============================================================================
+
+server {
+    listen 80;
+    server_name topdog.example.com;
+
+    # Redirect HTTP → HTTPS (enable once SSL is configured)
+    # return 301 https://$host$request_uri;
+
+    root /var/www/topdog;
+    index index.html;
+
+    # -------------------------------------------------------------------------
+    # Frontend — serve built static files
+    # Built output lands in: artifacts/top-dog-app/dist/public
+    # Copy / symlink that directory to /var/www/topdog
+    # -------------------------------------------------------------------------
+    location / {
+        try_files $uri $uri/ /index.html;
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # Cache static assets aggressively; HTML always fresh
+        location ~* \.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|ico|webp)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # API — proxy to the Node.js Express server
+    # -------------------------------------------------------------------------
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Needed for Server-Sent Events (AI chat streaming)
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 120s;
+
+        # Pass cookies for session auth
+        proxy_pass_header Set-Cookie;
+    }
+
+    # -------------------------------------------------------------------------
+    # Optional: HTTPS with Let's Encrypt (uncomment after certbot setup)
+    # certbot --nginx -d topdog.example.com
+    # -------------------------------------------------------------------------
+    # listen 443 ssl;
+    # ssl_certificate     /etc/letsencrypt/live/topdog.example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/topdog.example.com/privkey.pem;
+    # include             /etc/letsencrypt/options-ssl-nginx.conf;
+    # ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+}

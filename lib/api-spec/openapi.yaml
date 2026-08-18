@@ -1,0 +1,575 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Top Dog Chemical AI API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: notes
+    description: Note operations
+  - name: dilution
+    description: Dilution calculator and injector database
+  - name: openai
+    description: OpenAI AI chat operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /notes:
+    get:
+      operationId: listNotes
+      tags: [notes]
+      summary: List all notes
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by title or content
+        - in: query
+          name: category
+          schema:
+            type: string
+          description: Filter by category
+        - in: query
+          name: pinned
+          schema:
+            type: string
+            enum: ["true", "false"]
+          description: Filter by pinned status
+      responses:
+        "200":
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Note"
+    post:
+      operationId: createNote
+      tags: [notes]
+      summary: Create a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteInput"
+      responses:
+        "201":
+          description: Created note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "400":
+          description: Validation error
+
+  /notes/stats:
+    get:
+      operationId: getNoteStats
+      tags: [notes]
+      summary: Get note statistics
+      responses:
+        "200":
+          description: Note stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NoteStats"
+
+  /notes/recent:
+    get:
+      operationId: getRecentNotes
+      tags: [notes]
+      summary: Get recently updated notes
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: number
+          description: Max number to return (default 5)
+      responses:
+        "200":
+          description: Recent notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Note"
+
+  /notes/{id}:
+    get:
+      operationId: getNote
+      tags: [notes]
+      summary: Get a single note
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: The note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Note not found
+    patch:
+      operationId: updateNote
+      tags: [notes]
+      summary: Update a note
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NoteUpdate"
+      responses:
+        "200":
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Note not found
+    delete:
+      operationId: deleteNote
+      tags: [notes]
+      summary: Delete a note
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Note not found
+
+  /notes/{id}/pin:
+    patch:
+      operationId: toggleNotePin
+      tags: [notes]
+      summary: Toggle a note's pinned status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Updated note
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        "404":
+          description: Note not found
+
+  /dilution:
+    get:
+      operationId: listDilutionInjectors
+      tags: [dilution]
+      summary: List all injectors with optional filters
+      parameters:
+        - in: query
+          name: brand
+          schema:
+            type: string
+          description: Filter by brand name
+        - in: query
+          name: injectorColor
+          schema:
+            type: string
+          description: Filter by injector color
+      responses:
+        "200":
+          description: List of injector records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DilutionInjector"
+
+  /dilution/brands:
+    get:
+      operationId: listDilutionBrands
+      tags: [dilution]
+      summary: List all available brands
+      responses:
+        "200":
+          description: List of brand names
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /dilution/lookup:
+    get:
+      operationId: lookupDilution
+      tags: [dilution]
+      summary: Look up ratio by injector color and tip color
+      parameters:
+        - in: query
+          name: injectorColor
+          required: true
+          schema:
+            type: string
+          description: Injector color (e.g. "red")
+        - in: query
+          name: tipColor
+          required: true
+          schema:
+            type: string
+          description: Tip/metering tip color (e.g. "tan")
+        - in: query
+          name: brand
+          schema:
+            type: string
+          description: Brand to filter within (optional)
+      responses:
+        "200":
+          description: Matching injector records (empty array when none found)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DilutionInjector"
+
+  /dilution/reverse:
+    get:
+      operationId: reverseDilutionLookup
+      tags: [dilution]
+      summary: Find injector combinations for a target dilution ratio
+      parameters:
+        - in: query
+          name: ratio
+          required: true
+          schema:
+            type: number
+          description: Target dilution ratio (e.g. 64 for 64:1)
+        - in: query
+          name: brand
+          schema:
+            type: string
+          description: Brand to filter within (optional)
+        - in: query
+          name: tolerance
+          schema:
+            type: number
+          description: Acceptable ratio tolerance percentage (default 15)
+      responses:
+        "200":
+          description: Closest matching injector records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DilutionInjector"
+
+  /openai/conversations:
+    get:
+      operationId: listOpenaiConversations
+      tags: [openai]
+      summary: List all conversations
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiConversation"
+    post:
+      operationId: createOpenaiConversation
+      tags: [openai]
+      summary: Create a new conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiConversationInput"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversation"
+
+  /openai/conversations/{id}:
+    get:
+      operationId: getOpenaiConversation
+      tags: [openai]
+      summary: Get conversation with messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Conversation with messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenaiConversationWithMessages"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteOpenaiConversation
+      tags: [openai]
+      summary: Delete a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /openai/conversations/{id}/messages:
+    get:
+      operationId: listOpenaiMessages
+      tags: [openai]
+      summary: List messages in a conversation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OpenaiMessage"
+    post:
+      operationId: sendOpenaiMessage
+      tags: [openai]
+      summary: Send a text message and receive a streaming text response
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenaiMessageInput"
+      responses:
+        "200":
+          description: SSE stream of assistant text chunks
+          content:
+            text/event-stream: {}
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+
+    Note:
+      type: object
+      required: [id, title, content, category, pinned, createdAt, updatedAt]
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        content:
+          type: string
+        category:
+          type: string
+        pinned:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    NoteInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+        category:
+          type: string
+
+    NoteUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+        category:
+          type: string
+
+    NoteStats:
+      type: object
+      required: [total, pinned, categories]
+      properties:
+        total:
+          type: number
+        pinned:
+          type: number
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryCount"
+
+    CategoryCount:
+      type: object
+      required: [category, count]
+      properties:
+        category:
+          type: string
+        count:
+          type: number
+
+    DilutionInjector:
+      type: object
+      required: [id, brand, injectorColor, tipColor, ratio, gpm, ozPerGallon]
+      properties:
+        id:
+          type: number
+        brand:
+          type: string
+        injectorColor:
+          type: string
+        tipColor:
+          type: string
+        ratio:
+          type: string
+        gpm:
+          type: string
+        ozPerGallon:
+          type: string
+        notes:
+          type: ["string", "null"]
+
+    OpenaiConversation:
+      type: object
+      required: [id, title, createdAt]
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    OpenaiMessage:
+      type: object
+      required: [id, conversationId, role, content, createdAt]
+      properties:
+        id:
+          type: number
+        conversationId:
+          type: number
+        role:
+          type: string
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    OpenaiConversationInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+
+    OpenaiMessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+
+    OpenaiConversationWithMessages:
+      type: object
+      required: [id, title, createdAt, messages]
+      properties:
+        id:
+          type: number
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpenaiMessage"
+
+    OpenaiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

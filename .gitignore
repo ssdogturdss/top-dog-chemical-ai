@@ -1,0 +1,68 @@
+# =============================================================================
+# Top Dog Chemical AI — .gitignore
+# =============================================================================
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# Compiled output
+dist
+tmp
+out-tsc
+*.tsbuildinfo
+build/
+
+# Expo
+.expo
+.expo-shared
+
+# Dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+/coverage
+testem.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Replit workspace internals (not needed outside Replit)
+.cache/
+.local/
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Uploaded assets that should not be committed
+attached_assets/
+
+# Misc
+/connect.lock
+/libpeerconnection.log
+/typings
+/.sass-cache
